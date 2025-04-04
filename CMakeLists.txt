@@ -32,14 +32,23 @@ else()
     endif()
 endif()
 
+# Define the source directory
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 # Define the source files
-set(SOURCE_FILES main.cpp mainwindow.cpp mainwindow.h encrypt.cpp encrypt.h)
+set(SOURCE_FILES
+    ${SRC_DIR}/main.cpp
+    ${SRC_DIR}/mainwindow.cpp
+    ${SRC_DIR}/mainwindow.h
+    ${SRC_DIR}/encrypt.cpp
+    ${SRC_DIR}/encrypt.h
+)
 
 # Add executable based on the source files
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
-# Include directories for Crypto++
-include_directories(${CRYPTO_PP_INCLUDE_DIRS})
+# Include directories for Crypto++ and our source files
+include_directories(${CRYPTO_PP_INCLUDE_DIRS} ${SRC_DIR})
 
 # Linking against Qt5 and Crypto++
 target_link_libraries(${PROJECT_NAME} Qt5::Widgets ${CRYPTO_PP_LIBRARIES})

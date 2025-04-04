@@ -74,7 +74,6 @@ std::string generateRandomPassword(size_t length) {
     if (count < 0){
         return "";
     }
-    std::cout<<"this is the count :"<<count<<std::endl;
     return result;
 }
 
