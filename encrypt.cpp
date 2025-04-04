@@ -10,9 +10,35 @@
 #include <cryptopp/osrng.h>
 #include <cryptopp/gcm.h>
 #include <cryptopp/secblock.h> 
+#include <cctype>
 #include "encrypt.h"
 using namespace CryptoPP;
 
+#include <iostream>
+#include <string>
+
+// with my tests, the program will produce a not completely complex password every 50 times or less 
+// this function will prevent that 
+bool isValidPassword(const std::string& password) {
+    bool hasNumber = false;
+    bool hasLower = false;
+    bool hasUpper = false;
+    bool hasSymbol = false;
+
+    for (char ch : password) {
+        if (std::isdigit(ch)) {
+            hasNumber = true;
+        } else if (std::islower(ch)) {
+            hasLower = true;
+        } else if (std::isupper(ch)) {
+            hasUpper = true;
+        } else if (!std::isalnum(ch)) {
+            hasSymbol = true;
+        }
+    }
+
+    return hasNumber && hasLower && hasUpper && hasSymbol;
+}
 
 std::string generateRandomPassword(size_t length) {
 
@@ -20,27 +46,35 @@ std::string generateRandomPassword(size_t length) {
                         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                         "0123456789"
                         "!@#$%^&*()_+{}:<>,.?"; 
-    
-
-    // use secure memory handling
-    CryptoPP::SecByteBlock password(reinterpret_cast<const CryptoPP::byte*>(chars.data()), chars.size());
     std::string result;
     result.reserve(length);
+    // preventing too much cycle (will not happen but lets be cautious )
+    int count = 10;
+    do{
+        count--;
+        result.assign(result.size(), '\0');
+        // use secure memory handling
+        CryptoPP::SecByteBlock password(reinterpret_cast<const CryptoPP::byte*>(chars.data()), chars.size());
+        // create a random number generator
+        CryptoPP::AutoSeededRandomPool rng;
 
-    // create a random number generator
-    CryptoPP::AutoSeededRandomPool rng;
+        // generate the password with no bias
+        CryptoPP::byte index;
+        for (size_t i = 0; i < length; ++i) {
+            do {
+                rng.GenerateBlock(&index, 1);
+            } while (index >= (256 - (256 % chars.size())));  // avoid modulo bias
+            result += chars[index % chars.size()];
+        }
 
-    // generate the password with no bias
-    CryptoPP::byte index;
-    for (size_t i = 0; i < length; ++i) {
-        do {
-            rng.GenerateBlock(&index, 1);
-        } while (index >= (256 - (256 % chars.size())));  // avoid modulo bias
-        result += chars[index % chars.size()];
+        // clear sensitive data from memory
+        memset(password.data(), 0, password.size());
+    
+    }while(count>0 && !isValidPassword(result));
+    if (count < 0){
+        return "";
     }
-
-    // clear sensitive data from memory
-    memset(password.data(), 0, password.size());
+    std::cout<<"this is the count :"<<count<<std::endl;
     return result;
 }
 
