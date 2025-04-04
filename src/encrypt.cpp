@@ -52,7 +52,14 @@ std::string generateRandomPassword(size_t length) {
     int count = 10;
     do{
         count--;
-        result.assign(result.size(), '\0');
+        if (!result.empty()) {
+            volatile char* p = &result[0];
+            for (size_t i = 0; i < result.size(); ++i) {
+                p[i] = '\0';
+            }
+            result.clear();
+        }
+        
         // use secure memory handling
         CryptoPP::SecByteBlock password(reinterpret_cast<const CryptoPP::byte*>(chars.data()), chars.size());
         // create a random number generator
@@ -71,7 +78,7 @@ std::string generateRandomPassword(size_t length) {
         memset(password.data(), 0, password.size());
     
     }while(count>0 && !isValidPassword(result));
-    if (count < 0){
+    if (count <= 0){
         return "";
     }
     return result;
