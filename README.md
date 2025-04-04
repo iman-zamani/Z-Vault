@@ -106,20 +106,24 @@ Use `vcpkg` to install Crypto++ easily:
 
 ## Project Structure
 
-- `main.cpp`: Entry point of the application.
-- `mainwindow.cpp`: Contains the main window logic.
-- `mainwindow.h`: Header file for the main window.
-- `CMakeLists.txt`: Configuration file for CMake.
+
+```
+Z-Vault/
+├── README.md
+├── src/
+│   ├── main.cpp
+│   ├── mainwindow.h
+│   ├── encrypt.cpp
+│   ├── encrypt.h
+│   └── mainwindow.cpp
+├── .gitignore
+├── CMakeLists.txt
+├── LICENSE
+```
+
+    
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
-
-## Contributing
-
-Contributions are welcome! If you'd like to contribute, please fork the repository and submit a pull request.
-
-## Contact
-
-For any questions or feedback, please reach out to `izamanimoghaddam@gmail.com`.
 
