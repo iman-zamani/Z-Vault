@@ -82,9 +82,14 @@ To ensure the application compiles and runs successfully, you need to install th
 ### On Linux:
 
 Install Crypto++ using the package manager:
+#### Ubuntu:
+```bash
+sudo apt install libcrypto++-dev
+```
+#### Arch:
 
 ```bash
-sudo apt-get install libcrypto++-dev
+sudo pacman -S crypto++
 ```
 
 ### On Windows:
