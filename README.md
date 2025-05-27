@@ -1,6 +1,6 @@
 # Z-Vault
 
-A simple password manager application built for personal use. This app allows you to securely store and retrieve passwords for various accounts. It is designed with a focus on simplicity, security, and ease of use.
+A simple password manager application built for personal use. This app allows you to securely store and retrieve your passwords. It is designed with a focus on simplicity, security, and ease of use.
 
 <div align="center">
     <img src="icon.png" alt="app icon" width="300"/>
