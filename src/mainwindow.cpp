@@ -13,8 +13,25 @@
 #include <QTextStream>
 #include <QInputDialog>
 #include <QShortcut>
+#include <QStandardPaths>
+#include <QDir>
+#include <QFileInfo>
 #include "encrypt.h"
+static QString passwordFilePath()
+{
+    QString baseDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (baseDir.isEmpty()) {
+        baseDir = QDir::homePath(); 
+    }
+
+    QDir dir(baseDir);
+    dir.mkpath("."); 
+
+    return dir.filePath("password.enc");
+}
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+    // set the correct path
+    filePath = passwordFilePath();
     // table of passwords setup
     table = new QTableWidget(this);
     table->setColumnCount(8); 
