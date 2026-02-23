@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
-          path: *.dmg
+          path: "*.dmg" # <-- FIXED: Quotes added here
 
   # ==========================================================
   # 3. LINUX BUILD + Packaging (.deb, .rpm, .tar.gz)
@@ -151,14 +151,13 @@ jobs:
           cp build/Z-Vault linux-pkg/usr/bin/z-vault
           cp assets/icon.png linux-pkg/usr/share/pixmaps/z-vault.png
           
-          cat <<EOF > linux-pkg/usr/share/applications/z-vault.desktop
-          [Desktop Entry]
-          Name=Z-Vault
-          Exec=/usr/bin/z-vault
-          Icon=z-vault
-          Type=Application
-          Categories=Utility;Security;
-          EOF
+          # Writing desktop file via echo to avoid bash indentation issues
+          echo "[Desktop Entry]" > linux-pkg/usr/share/applications/z-vault.desktop
+          echo "Name=Z-Vault" >> linux-pkg/usr/share/applications/z-vault.desktop
+          echo "Exec=/usr/bin/z-vault" >> linux-pkg/usr/share/applications/z-vault.desktop
+          echo "Icon=z-vault" >> linux-pkg/usr/share/applications/z-vault.desktop
+          echo "Type=Application" >> linux-pkg/usr/share/applications/z-vault.desktop
+          echo "Categories=Utility;Security;" >> linux-pkg/usr/share/applications/z-vault.desktop
 
       - name: Prepare Variables
         id: vars
