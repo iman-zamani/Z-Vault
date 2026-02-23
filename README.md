@@ -3,7 +3,7 @@
 A simple password manager application built for personal use. This app allows you to securely store and retrieve your passwords. It is designed with a focus on simplicity, security, and ease of use.
 
 <div align="center">
-    <img src="icon.png" alt="app icon" width="300"/>
+    <img src="assets/icon.png" alt="app icon" width="300"/>
 </div>
 
 
@@ -14,7 +14,7 @@ A simple password manager application built for personal use. This app allows yo
 - **Memory cleanup on exit**: Automatically clears all password data from memory when the program closes, eliminating any potential security risks from leftover data in RAM.
 
 <div align="center">
-    <img src="image.png" alt="app icon" width="900"/>
+    <img src="assets/image.png" alt="app icon" width="900"/>
 </div>
 
 
