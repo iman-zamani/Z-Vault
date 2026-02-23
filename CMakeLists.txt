@@ -64,8 +64,24 @@ set(SOURCE_FILES
     ${SRC_DIR}/encrypt.h
 )
 
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+set(APP_ICON_MACOS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.icns")
+set(APP_ICON_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.rc")
+
+if(APPLE)
+    list(APPEND SOURCE_FILES ${APP_ICON_MACOS})
+    set_source_files_properties(${APP_ICON_MACOS} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+elseif(WIN32)
+    list(APPEND SOURCE_FILES ${APP_ICON_WINDOWS})
+endif()
+
+add_executable(${PROJECT_NAME} MACOSX_BUNDLE WIN32 ${SOURCE_FILES})
+
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE icon.icns
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.zvault.app
+    )
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
-
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets ${CRYPTO_PP_TARGET})
