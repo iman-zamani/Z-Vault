@@ -84,7 +84,7 @@ jobs:
   # 2. MACOS BUILD (Apple Silicon ONLY)
   # ==========================================================
   build-macos:
-    runs-on: macos-14 # Apple Silicon
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -97,16 +97,22 @@ jobs:
           cmake -B build -DCMAKE_PREFIX_PATH="$(brew --prefix qt@5)" -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
-      - name: Create macOS App Bundle
+      - name: Find and Deploy App Bundle
         run: |
-          # The binary is already an .app thanks to MACOSX_BUNDLE in CMake
-          $(brew --prefix qt@5)/bin/macdeployqt build/Z-Vault.app
+          APP_PATH=$(find build -name "*.app" -maxdepth 3 | head -n 1)
+          echo "Found app at: $APP_PATH"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle found. Listing build dir:"
+            find build -type f | head -40
+            exit 1
+          fi
+          $(brew --prefix qt@5)/bin/macdeployqt "$APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
 
       - name: Create DMG
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
           DMG_NAME="Z-Vault-${VERSION}-macos-arm64.dmg"
-          
           create-dmg \
             --volname "Z-Vault" \
             --window-pos 200 120 \
@@ -115,13 +121,13 @@ jobs:
             --icon "Z-Vault.app" 150 200 \
             --app-drop-link 450 200 \
             "$DMG_NAME" \
-            "build/Z-Vault.app"
+            "${{ env.APP_PATH }}"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
-          path: "*.dmg" # <-- FIXED: Quotes added here
+          path: "*.dmg"
 
   # ==========================================================
   # 3. LINUX BUILD + Packaging (.deb, .rpm, .tar.gz)
@@ -134,7 +140,7 @@ jobs:
       - name: Install System Deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake qtbase5-dev libcryptopp-dev ruby-dev
+          sudo apt-get install -y build-essential cmake qtbase5-dev libcrypto++-dev ruby-dev
           sudo gem install fpm
 
       - name: Build with CMake
@@ -151,7 +157,6 @@ jobs:
           cp build/Z-Vault linux-pkg/usr/bin/z-vault
           cp assets/icon.png linux-pkg/usr/share/pixmaps/z-vault.png
           
-          # Writing desktop file via echo to avoid bash indentation issues
           echo "[Desktop Entry]" > linux-pkg/usr/share/applications/z-vault.desktop
           echo "Name=Z-Vault" >> linux-pkg/usr/share/applications/z-vault.desktop
           echo "Exec=/usr/bin/z-vault" >> linux-pkg/usr/share/applications/z-vault.desktop
@@ -175,7 +180,7 @@ jobs:
         run: |
           fpm -s dir -t deb -n z-vault -v ${{ env.CLEAN_VERSION }} \
           --description "Z-Vault Encryption App" \
-          -d "libqt5widgets5" -d "libcryptopp8" \
+          -d "libqt5widgets5" -d "libcrypto++8" \
           -C linux-pkg .
 
       - name: Package RPM
