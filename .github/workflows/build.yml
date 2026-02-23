@@ -18,7 +18,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install NSIS
-        run: choco install nsis -y
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Qt5
         uses: jurplel/install-qt-action@v3
@@ -70,7 +72,7 @@ jobs:
           SectionEnd
           "@
           Set-Content -Path build.nsi -Value $NSIS_SCRIPT
-          makensis build.nsi
+          & "C:\Program Files (x86)\NSIS\makensis.exe" build.nsi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
