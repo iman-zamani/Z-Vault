@@ -1,0 +1,220 @@
+name: Build and Release Multi-Platform (C++)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ==========================================================
+  # 1. WINDOWS BUILD (x86_64)
+  # ==========================================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Install Qt5
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.15.2'
+          arch: 'win64_msvc2019_64'
+
+      - name: Install Crypto++ via vcpkg
+        run: vcpkg install cryptopp:x64-windows
+
+      - name: Build with CMake
+        run: |
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Deploy Qt DLLs (windeployqt)
+        run: |
+          mkdir dist
+          cp build/Release/Z-Vault.exe dist/
+          windeployqt dist/Z-Vault.exe
+
+      - name: Create Zip (Portable)
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          mv dist Z-Vault-${VERSION}-windows-x64
+          7z a Z-Vault-${VERSION}-windows-x64.zip Z-Vault-${VERSION}-windows-x64
+
+      - name: Create Installer (NSIS)
+        shell: pwsh
+        run: |
+          $VERSION = "${env:GITHUB_REF}".Replace("refs/tags/", "")
+          $NSIS_SCRIPT = @"
+          Outfile `"Z-Vault-$VERSION-windows-installer.exe`"
+          InstallDir `"$PROGRAMFILES\Z-Vault`"
+          Icon `"assets\icon.ico`"
+          UninstallIcon `"assets\icon.ico`"
+          
+          Section `"Install`"
+            SetOutPath `"$INSTDIR`"
+            File /r `"Z-Vault-$VERSION-windows-x64\*`"
+            CreateShortcut `"$DESKTOP\Z-Vault.lnk`" `"$INSTDIR\Z-Vault.exe`" `"`" `"$INSTDIR\assets\icon.ico`"
+            WriteUninstaller `"$INSTDIR\uninstall.exe`"
+          SectionEnd
+
+          Section `"Uninstall`"
+            Delete `"$DESKTOP\Z-Vault.lnk`"
+            RMDir /r `"$INSTDIR`"
+          SectionEnd
+          "@
+          Set-Content -Path build.nsi -Value $NSIS_SCRIPT
+          makensis build.nsi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            Z-Vault-*.zip
+            Z-Vault-*-installer.exe
+
+  # ==========================================================
+  # 2. MACOS BUILD (Apple Silicon ONLY)
+  # ==========================================================
+  build-macos:
+    runs-on: macos-14 # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          brew install qt@5 cryptopp create-dmg
+
+      - name: Build with CMake
+        run: |
+          cmake -B build -DCMAKE_PREFIX_PATH="$(brew --prefix qt@5)" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Create macOS App Bundle
+        run: |
+          # The binary is already an .app thanks to MACOSX_BUNDLE in CMake
+          $(brew --prefix qt@5)/bin/macdeployqt build/Z-Vault.app
+
+      - name: Create DMG
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          DMG_NAME="Z-Vault-${VERSION}-macos-arm64.dmg"
+          
+          create-dmg \
+            --volname "Z-Vault" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 120 \
+            --icon "Z-Vault.app" 150 200 \
+            --app-drop-link 450 200 \
+            "$DMG_NAME" \
+            "build/Z-Vault.app"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: *.dmg
+
+  # ==========================================================
+  # 3. LINUX BUILD + Packaging (.deb, .rpm, .tar.gz)
+  # ==========================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install System Deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake qtbase5-dev libcryptopp-dev ruby-dev
+          sudo gem install fpm
+
+      - name: Build with CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Prepare Linux Desktop File
+        run: |
+          mkdir -p linux-pkg/usr/bin
+          mkdir -p linux-pkg/usr/share/pixmaps
+          mkdir -p linux-pkg/usr/share/applications
+          
+          cp build/Z-Vault linux-pkg/usr/bin/z-vault
+          cp assets/icon.png linux-pkg/usr/share/pixmaps/z-vault.png
+          
+          cat <<EOF > linux-pkg/usr/share/applications/z-vault.desktop
+          [Desktop Entry]
+          Name=Z-Vault
+          Exec=/usr/bin/z-vault
+          Icon=z-vault
+          Type=Application
+          Categories=Utility;Security;
+          EOF
+
+      - name: Prepare Variables
+        id: vars
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          CLEAN_VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+
+      - name: Package Tarball
+        run: |
+          tar -czvf Z-Vault-${{ env.VERSION }}-linux-x64.tar.gz -C linux-pkg .
+
+      - name: Package DEB
+        run: |
+          fpm -s dir -t deb -n z-vault -v ${{ env.CLEAN_VERSION }} \
+          --description "Z-Vault Encryption App" \
+          -d "libqt5widgets5" -d "libcryptopp8" \
+          -C linux-pkg .
+
+      - name: Package RPM
+        run: |
+          fpm -s dir -t rpm -n z-vault -v ${{ env.CLEAN_VERSION }} \
+          --description "Z-Vault Encryption App" \
+          -d "qt5-qtbase-gui" -d "cryptopp" \
+          -C linux-pkg .
+
+      - name: Rename Packages
+        run: |
+          mv z-vault_*.deb Z-Vault-${{ env.VERSION }}-linux-amd64.deb
+          mv z-vault-*.x86_64.rpm Z-Vault-${{ env.VERSION }}-linux-x86_64.rpm
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            *.tar.gz
+            *.deb
+            *.rpm
+
+  # ==========================================================
+  # 4. RELEASE
+  # ==========================================================
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+          generate_release_notes: true
