@@ -48,7 +48,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setCentralWidget(widget);
     QScreen *screen = QApplication::screens().at(0);
     QRect screenSize = screen->availableGeometry();
-    resize(screenSize.width() / 2, screenSize.height() / 2);
+    resize(screenSize.width() / 2 + 200, screenSize.height() / 2);
     // shortcut setup 
     QShortcut *shortcutAddRow = new QShortcut(QKeySequence("Ctrl+T"), this);
     connect(shortcutAddRow, &QShortcut::activated, this, &MainWindow::addRow);
