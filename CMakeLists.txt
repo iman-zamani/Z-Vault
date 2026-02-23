@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10...3.28)
 
 project(Z-Vault)
 
@@ -9,33 +9,53 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Find Qt5Widgets
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
-
-# Attempt to find Crypto++ using pkg-config first
-find_package(PkgConfig QUIET)
-pkg_check_modules(CRYPTO_PP QUIET libcryptopp)
-
-if(CRYPTO_PP_FOUND)
-    message(STATUS "Using Crypto++ from pkg-config")
-else()
-    # If pkg-config failed, try the conventional way
-    find_path(CRYPTOPP_INCLUDE_DIR NAMES cryptopp/cryptlib.h)
-    find_library(CRYPTOPP_LIBRARY NAMES cryptopp libcryptopp)
-
-    if(CRYPTOPP_INCLUDE_DIR AND CRYPTOPP_LIBRARY)
-        set(CRYPTO_PP_INCLUDE_DIRS ${CRYPTOPP_INCLUDE_DIR})
-        set(CRYPTO_PP_LIBRARIES ${CRYPTOPP_LIBRARY})
-        message(STATUS "Found Crypto++: ${CRYPTOPP_LIBRARY}")
-    else()
-        message(FATAL_ERROR "Crypto++ not found")
+if(APPLE)
+    execute_process(COMMAND brew --prefix qt@5
+                    OUTPUT_VARIABLE QT_HOMEBREW_PREFIX
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET)
+    if(QT_HOMEBREW_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${QT_HOMEBREW_PREFIX}")
+    endif()
+    
+    execute_process(COMMAND brew --prefix cryptopp
+                    OUTPUT_VARIABLE CRYPTOPP_HOMEBREW_PREFIX
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET)
+    if(CRYPTOPP_HOMEBREW_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${CRYPTOPP_HOMEBREW_PREFIX}")
     endif()
 endif()
 
-# Define the source directory
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
+
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(CRYPTO_PP QUIET IMPORTED_TARGET libcryptopp)
+endif()
+
+if(CRYPTO_PP_FOUND)
+    message(STATUS "Using Crypto++ from pkg-config")
+    set(CRYPTO_PP_TARGET PkgConfig::CRYPTO_PP)
+else()
+    find_path(CRYPTOPP_INCLUDE_DIR NAMES cryptopp/cryptlib.h)
+    find_library(CRYPTOPP_LIBRARY NAMES cryptopp libcryptopp cryptlib)
+
+    if(CRYPTOPP_INCLUDE_DIR AND CRYPTOPP_LIBRARY)
+        message(STATUS "Found Crypto++ fallback: ${CRYPTOPP_LIBRARY}")
+        add_library(CryptoPP::CryptoPP UNKNOWN IMPORTED)
+        set_target_properties(CryptoPP::CryptoPP PROPERTIES
+            IMPORTED_LOCATION "${CRYPTOPP_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${CRYPTOPP_INCLUDE_DIR}"
+        )
+        set(CRYPTO_PP_TARGET CryptoPP::CryptoPP)
+    else()
+        message(FATAL_ERROR "Crypto++ not found. Please ensure it is installed.")
+    endif()
+endif()
+
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# Define the source files
 set(SOURCE_FILES
     ${SRC_DIR}/main.cpp
     ${SRC_DIR}/mainwindow.cpp
@@ -44,11 +64,8 @@ set(SOURCE_FILES
     ${SRC_DIR}/encrypt.h
 )
 
-# Add executable based on the source files
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
-# Include directories for Crypto++ and our source files
-include_directories(${CRYPTO_PP_INCLUDE_DIRS} ${SRC_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 
-# Linking against Qt5 and Crypto++
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets ${CRYPTO_PP_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets ${CRYPTO_PP_TARGET})
