@@ -111,6 +111,10 @@ jobs:
           $(brew --prefix qt@5)/bin/macdeployqt "$APP_PATH"
           echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
 
+      - name: Sign App Bundle (Ad-hoc)
+        run: |
+          codesign --force --deep --sign - "${{ env.APP_PATH }}"
+
       - name: Create DMG
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
